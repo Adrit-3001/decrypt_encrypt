@@ -20,7 +20,7 @@ for pin in range(1000):                            # pin = 0, 1, 2, ... 999
     aes = AES.new(key.encode(), AES.MODE_ECB)
     first_block = aes.decrypt(scrambled[:16])      # just the first 16 bytes, so each guess is instant
 
-    if False:  # YOUR TURN: replace False with a check that first_block starts with b"HUNT"
+    if first_block.startswith(b"HUNT"):  # YOUR TURN: replace False with a check that first_block starts with b"HUNT"
         print("Cracked it! The key is", key)
         break
 

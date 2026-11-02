@@ -9,7 +9,7 @@
 from PIL import Image          # opens and saves pictures
 from Crypto.Cipher import AES  # the AES encryption algorithm
 
-KEY = "sixteen-letterz!"       # AES keys are exactly 16 characters. Try changing one letter!
+KEY = "sixteen-letters!"       # AES keys are exactly 16 characters. Try changing one letter!
 
 picture = Image.open("mystery.png")
 scrambled = picture.tobytes()                 # the picture as one long list of numbers (bytes)
