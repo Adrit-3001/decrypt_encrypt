@@ -6,15 +6,22 @@
 #   level1.png  key given away by the hint in level1_decrypt.py
 #   level2.png  key brute-forced using the clue in level 1's picture
 #   level3.png  no key at all, cracked by spotting ECB's repeated blocks
+#
+# It also writes the website's copies into web/: the same encrypted bytes as
+# levelN.bin, plus a hash of the flag so the site can check answers without
+# containing the flag itself.
 
+import hashlib
+import json
 import random
+from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont
 from Crypto.Cipher import AES
 
 LEVEL1_KEY = "open" * 4
 LEVEL1_LINES = ["LEVEL 1 DONE!", "",
-                "Level 2's key is", "the-vault-pin + 3 digits",
+                "Level 2's key is", "'the-vault-pin' + 3 digits",
                 "",
                 "Every real picture here", "starts with the bytes HUNT"]
 
@@ -25,10 +32,12 @@ LEVEL2_LINES = ["VAULT OPEN!", "",
                 "Paint repeated blocks white,", "everything else black"]
 
 LEVEL3_KEY = "nobody-knows-me!"  # never given to players
-LEVEL3_LINES = ["YOU WIN!", "FLAG:", "PENGUIN"]
+FLAG = "PENGUIN"
+LEVEL3_LINES = ["YOU WIN!", "FLAG:", FLAG]
 
 SIZE = 480  # 480 * 480 * 3 bytes is a multiple of 16, which AES needs
 MAGIC = b"HUNT"  # hidden pictures start with these bytes, so players' code can recognise success
+WEB_DIR = Path("web")
 
 
 def load_font(size):
@@ -99,10 +108,16 @@ def pattern_picture(lines):
 def save_encrypted(output, key, pixels):
     scrambled = AES.new(key.encode(), AES.MODE_ECB).encrypt(pixels)
     Image.frombytes("RGB", (SIZE, SIZE), scrambled).save(output)
+    # Raw bytes, because browsers may colour-correct PNG pixels when reading them
+    (WEB_DIR / output).with_suffix(".bin").write_bytes(scrambled)
     print(f"Wrote {output} (key: {key})")
 
 
 if __name__ == "__main__":
+    WEB_DIR.mkdir(exist_ok=True)
     save_encrypted("level1.png", LEVEL1_KEY, keyed_picture(LEVEL1_LINES))
     save_encrypted("level2.png", LEVEL2_KEY, keyed_picture(LEVEL2_LINES))
     save_encrypted("level3.png", LEVEL3_KEY, pattern_picture(LEVEL3_LINES))
+    flag_hash = hashlib.sha256(FLAG.lower().encode()).hexdigest()
+    (WEB_DIR / "puzzle.json").write_text(json.dumps({"flag_sha256": flag_hash}) + "\n")
+    print(f"Wrote {WEB_DIR}/ (flag: {FLAG})")

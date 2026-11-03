@@ -1,0 +1,1016 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AES Image Hunt</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='4' y='10' width='16' height='11' rx='2' fill='%237b2ff7'/%3E%3Cpath d='M8 10V7a4 4 0 0 1 8 0v3' fill='none' stroke='%2319d3a2' stroke-width='2.5'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
+<style>
+  :root {
+    --bg: #f5f4fb;
+    --surface: #ffffff;
+    --surface-2: #efedf8;
+    --border: #dedaf0;
+    --text: #1c1b2e;
+    --muted: #5d5a78;
+    --accent: #6d4aff;
+    --accent-ink: #ffffff;
+    --accent-soft: #ece7ff;
+    --ok: #0f7a55;
+    --ok-soft: #e2f5ec;
+    --hint: #8a5a00;
+    --hint-soft: #fff4dc;
+    --code-bg: #1b1a2e;
+    --code-text: #e7e5f7;
+    --code-border: #2c2a45;
+    --shadow: 0 1px 2px rgb(28 27 46 / 6%), 0 8px 24px rgb(28 27 46 / 6%);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0e0d1a;
+      --surface: #17162a;
+      --surface-2: #211f38;
+      --border: #2e2b4a;
+      --text: #ecebf7;
+      --muted: #a4a1c4;
+      --accent: #8f73ff;
+      --accent-ink: #ffffff;
+      --accent-soft: #2a2350;
+      --ok: #4ade9a;
+      --ok-soft: #12301f;
+      --hint: #ffcf70;
+      --hint-soft: #33280f;
+      --code-bg: #12111f;
+      --code-border: #2a2840;
+      --shadow: none;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0e0d1a;
+    --surface: #17162a;
+    --surface-2: #211f38;
+    --border: #2e2b4a;
+    --text: #ecebf7;
+    --muted: #a4a1c4;
+    --accent: #8f73ff;
+    --accent-ink: #ffffff;
+    --accent-soft: #2a2350;
+    --ok: #4ade9a;
+    --ok-soft: #12301f;
+    --hint: #ffcf70;
+    --hint-soft: #33280f;
+    --code-bg: #12111f;
+    --code-border: #2a2840;
+    --shadow: none;
+  }
+
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Space Grotesk", system-ui, sans-serif;
+    font-size: 16px;
+    line-height: 1.55;
+  }
+  button { font: inherit; color: inherit; }
+  code, kbd { font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 0.9em; }
+  /* No ligatures: beginners should see != and -> exactly as they type them, not ≠ and → */
+  code, kbd, .CodeMirror, .console { font-variant-ligatures: none; font-feature-settings: "liga" 0, "calt" 0; }
+  p code, li code {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 1px 5px;
+  }
+
+  /* ---------- top bar ---------- */
+  .topbar {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: color-mix(in srgb, var(--bg) 88%, transparent);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--border);
+  }
+  .topbar-inner {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px 20px;
+    flex-wrap: wrap;
+  }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 1.15rem; }
+  .brand-mark {
+    width: 34px; height: 34px;
+    border-radius: 10px;
+    display: grid; place-items: center;
+    color: #fff;
+    background: linear-gradient(135deg, #19d3a2, #7b2ff7 55%, #f7a8c4);
+  }
+  .steps { display: flex; gap: 6px; flex-wrap: wrap; margin-left: auto; }
+  .step {
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: 6px 12px 6px 6px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--surface);
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 500;
+  }
+  .step .num {
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    display: grid; place-items: center;
+    background: var(--surface-2);
+    font-size: 0.8rem; font-weight: 700;
+  }
+  .step[aria-current="step"] { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+  .step[aria-current="step"] .num { background: var(--accent); color: var(--accent-ink); }
+  .step.solved .num { background: var(--ok); color: var(--surface); }
+  .step:disabled { cursor: not-allowed; opacity: 0.55; }
+  .step svg { display: block; }
+
+  .py-status {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-size: 0.85rem;
+    color: var(--muted);
+  }
+  .py-status .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--hint); animation: pulse 1.2s infinite; }
+  .py-status.ready .dot { background: var(--ok); animation: none; }
+  .py-status.failed .dot { background: #e5484d; animation: none; }
+  @keyframes pulse { 50% { opacity: 0.3; } }
+
+  /* ---------- layout ---------- */
+  main { max-width: 1200px; margin: 0 auto; padding: 24px 16px 40px; }
+  .level-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 370px) minmax(0, 1fr);
+    gap: 20px;
+    align-items: start;
+  }
+  .side { position: sticky; top: 84px; display: grid; gap: 16px; }
+  .work { display: grid; gap: 16px; }
+  @media (max-width: 920px) {
+    .level-grid { grid-template-columns: minmax(0, 1fr); }
+    .side { position: static; }
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 20px;
+    box-shadow: var(--shadow);
+  }
+  .eyebrow {
+    margin: 0 0 4px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+  h1 { margin: 0 0 8px; font-size: 1.6rem; line-height: 1.2; text-wrap: balance; }
+  h2 { margin: 0 0 10px; font-size: 1rem; }
+  .story { margin: 0 0 14px; color: var(--muted); }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }
+  .chips li {
+    font-size: 0.8rem;
+    padding: 3px 10px;
+    border-radius: 999px;
+    background: var(--accent-soft);
+    color: var(--accent);
+    font-weight: 500;
+  }
+
+  .clue h2 { display: flex; align-items: center; gap: 8px; }
+  .clue p { margin: 0 0 8px; }
+  .clue p:last-child { margin-bottom: 0; }
+  .clue-img {
+    display: block;
+    width: 100%;
+    border-radius: 10px;
+    border: 0;
+    padding: 0;
+    background: none;
+    cursor: zoom-in;
+  }
+  .clue-img img { display: block; width: 100%; border-radius: 10px; }
+  .clue-caption { margin-top: 8px; font-size: 0.85rem; color: var(--muted); }
+
+  .nudges { display: grid; gap: 10px; }
+  .nudge {
+    margin: 0;
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: var(--hint-soft);
+    color: var(--text);
+    border-left: 3px solid var(--hint);
+    font-size: 0.93rem;
+  }
+  .nudge-count { font-size: 0.85rem; color: var(--muted); }
+
+  /* ---------- buttons ---------- */
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    padding: 9px 16px;
+    border-radius: 10px;
+    border: 1px solid transparent;
+    font-weight: 700;
+    cursor: pointer;
+    text-decoration: none;
+  }
+  .btn-primary { background: var(--accent); color: var(--accent-ink); }
+  .btn-primary:hover:not(:disabled) { filter: brightness(1.08); }
+  .btn-primary:disabled { opacity: 0.5; cursor: progress; }
+  .btn-ghost { background: transparent; border-color: var(--border); color: var(--text); font-weight: 500; }
+  .btn-ghost:hover { background: var(--surface-2); }
+  .btn-hint { background: var(--hint-soft); color: var(--hint); border-color: transparent; }
+  .btn-hint:disabled { opacity: 0.6; cursor: default; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  /* ---------- editor ---------- */
+  .editor-card { padding: 0; overflow: hidden; }
+  .editor-bar {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--border);
+  }
+  .editor-bar .file { font-family: "JetBrains Mono", monospace; font-size: 0.88rem; color: var(--muted); margin-right: auto; }
+  .shortcut { font-size: 0.78rem; opacity: 0.8; font-weight: 400; }
+  .CodeMirror {
+    height: auto;
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 14px;
+    line-height: 1.6;
+    background: var(--code-bg);
+    color: var(--code-text);
+    padding: 10px 0;
+  }
+  .CodeMirror-gutters { background: var(--code-bg); border-right: 1px solid var(--code-border); }
+  .CodeMirror-linenumber { color: #6c6990; }
+  .CodeMirror-cursor { border-left-color: #fff; }
+  .CodeMirror-selected, .CodeMirror-focused .CodeMirror-selected { background: #3a3566 !important; }
+  .cm-s-default .cm-keyword { color: #c792ea; }
+  .cm-s-default .cm-def { color: #82aaff; }
+  .cm-s-default .cm-variable, .cm-s-default .cm-variable-2, .cm-s-default .cm-property { color: var(--code-text); }
+  .cm-s-default .cm-builtin { color: #82aaff; }
+  .cm-s-default .cm-string { color: #c3e88d; }
+  .cm-s-default .cm-number { color: #f78c6c; }
+  .cm-s-default .cm-operator { color: #89ddff; }
+  .cm-s-default .cm-comment { color: #8b88a8; font-style: italic; }
+  .cm-your-turn { background: rgb(255 207 112 / 12%); box-shadow: inset 3px 0 0 #ffcf70; }
+  .cm-error-line { background: rgb(255 110 100 / 18%) !important; box-shadow: inset 3px 0 0 #ff6e64; }
+
+  .console {
+    margin: 0;
+    padding: 12px 16px;
+    min-height: 52px;
+    background: var(--code-bg);
+    border-top: 1px solid var(--code-border);
+    color: #cfcde6;
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 13px;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .console .muted { color: #7c79a0; }
+  .console .ok { color: #6ee7a8; }
+  .console .warn { color: #ffd27a; }
+  .console .err { color: #ff8f85; }
+  .console .tip { color: #b9b6d9; }
+
+  /* ---------- pictures ---------- */
+  .pics {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    gap: 14px;
+    align-items: center;
+  }
+  .pic h2 { font-size: 0.9rem; color: var(--muted); font-weight: 500; margin-bottom: 8px; }
+  .frame { position: relative; aspect-ratio: 1; border-radius: 12px; overflow: hidden; background: var(--surface-2); }
+  .frame canvas { display: block; width: 100%; height: 100%; image-rendering: pixelated; }
+  .frame .empty {
+    position: absolute; inset: 0;
+    display: grid; place-items: center;
+    padding: 16px;
+    text-align: center;
+    color: var(--muted);
+    font-size: 0.9rem;
+    border: 2px dashed var(--border);
+    border-radius: 12px;
+  }
+  .arrow { color: var(--muted); }
+  @media (max-width: 560px) {
+    .pics { grid-template-columns: minmax(0, 1fr); }
+    .arrow { justify-self: center; transform: rotate(90deg); }
+  }
+
+  .flag-form { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-top: 16px; }
+  .flag-form label { font-weight: 700; width: 100%; }
+  .flag-form input {
+    flex: 1 1 200px;
+    min-width: 0;
+    padding: 10px 12px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--text);
+    font: inherit;
+    font-family: "JetBrains Mono", monospace;
+    text-transform: uppercase;
+  }
+  .flag-msg { width: 100%; margin: 0; font-size: 0.9rem; min-height: 1.4em; }
+  .flag-msg.no { color: #e5484d; }
+  .shake { animation: shake 0.35s; }
+  @keyframes shake { 25% { transform: translateX(-6px); } 75% { transform: translateX(6px); } }
+
+  /* ---------- dialogs ---------- */
+  dialog {
+    border: none;
+    border-radius: 20px;
+    padding: 0;
+    width: min(520px, calc(100vw - 32px));
+    max-height: calc(100vh - 32px);
+    background: var(--surface);
+    color: var(--text);
+    box-shadow: 0 20px 60px rgb(0 0 0 / 35%);
+  }
+  dialog::backdrop { background: rgb(10 8 25 / 65%); }
+  .dialog-body { padding: 24px; display: grid; gap: 14px; }
+  .dialog-body h2 { font-size: 1.4rem; margin: 0; }
+  .dialog-body p { margin: 0; }
+  .dialog-body img { display: block; width: 100%; border-radius: 12px; }
+  .fact { padding: 12px 14px; border-radius: 12px; background: var(--accent-soft); font-size: 0.93rem; }
+  .dialog-actions { display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; }
+  .win-time { font-size: 2.4rem; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1; }
+  .win-banner {
+    height: 8px;
+    background: linear-gradient(90deg, #19d3a2, #7b2ff7, #f7a8c4);
+  }
+
+  footer {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 16px 32px;
+    display: flex; gap: 12px; flex-wrap: wrap; align-items: center; justify-content: space-between;
+    color: var(--muted);
+    font-size: 0.85rem;
+  }
+  .link-btn { background: none; border: 0; padding: 0; color: var(--muted); text-decoration: underline; cursor: pointer; }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
+      </span>
+      AES Image Hunt
+    </div>
+    <span class="py-status" id="py-status"><span class="dot"></span><span id="py-status-text">Starting Python…</span></span>
+    <nav class="steps" id="steps" aria-label="Levels"></nav>
+  </div>
+</header>
+
+<main>
+  <div class="level-grid">
+    <aside class="side">
+      <section class="card">
+        <p class="eyebrow" id="level-eyebrow"></p>
+        <h1 id="level-title"></h1>
+        <p class="story" id="level-story"></p>
+        <ul class="chips" id="level-concepts" aria-label="What you'll learn"></ul>
+      </section>
+
+      <section class="card clue" id="clue"></section>
+
+      <section class="card nudges">
+        <h2>Stuck?</h2>
+        <div id="nudge-list" class="nudges"></div>
+        <div>
+          <button class="btn btn-hint" id="nudge-btn" type="button">Give me a nudge</button>
+          <span class="nudge-count" id="nudge-count"></span>
+        </div>
+      </section>
+    </aside>
+
+    <div class="work">
+      <section class="card editor-card">
+        <div class="editor-bar">
+          <span class="file" id="file-name"></span>
+          <button class="btn btn-ghost" id="reset-code" type="button">Reset code</button>
+          <button class="btn btn-primary" id="run-btn" type="button" disabled>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 4v16l13-8z"/></svg>
+            <span id="run-label">Run</span>
+            <span class="shortcut" id="run-shortcut">Ctrl + Enter</span>
+          </button>
+        </div>
+        <textarea id="code"></textarea>
+        <pre class="console" id="console" aria-live="polite"><span class="muted">Change the lines marked YOUR TURN, then press Run.</span></pre>
+      </section>
+
+      <section class="card">
+        <div class="pics">
+          <div class="pic">
+            <h2>Locked picture</h2>
+            <div class="frame">
+              <canvas id="locked-canvas" width="480" height="480"></canvas>
+              <div class="empty" id="locked-empty">Loading…</div>
+            </div>
+          </div>
+          <svg class="arrow" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+          <div class="pic">
+            <h2>Your result</h2>
+            <div class="frame">
+              <canvas id="result-canvas" width="480" height="480"></canvas>
+              <div class="empty" id="result-empty">Run your code to see what comes out</div>
+            </div>
+          </div>
+        </div>
+
+        <form class="flag-form" id="flag-form" hidden>
+          <label for="flag-input">Found the flag? Type it here</label>
+          <input id="flag-input" autocomplete="off" spellcheck="false" placeholder="FLAG">
+          <button class="btn btn-primary" type="submit">Submit flag</button>
+          <p class="flag-msg" id="flag-msg" aria-live="polite"></p>
+        </form>
+      </section>
+    </div>
+  </div>
+</main>
+
+<footer>
+  <span>Everything runs in your browser. Nothing to install.</span>
+  <button class="link-btn" id="reset-all" type="button">Reset all progress</button>
+</footer>
+
+<dialog id="solved-dialog">
+  <div class="win-banner"></div>
+  <div class="dialog-body">
+    <h2 id="solved-title"></h2>
+    <p id="solved-text"></p>
+    <img id="solved-img" alt="The unlocked picture">
+    <p class="fact" id="solved-fact"></p>
+    <div class="dialog-actions">
+      <button class="btn btn-ghost" type="button" data-close>Stay here</button>
+      <button class="btn btn-primary" type="button" id="solved-next"></button>
+    </div>
+  </div>
+</dialog>
+
+<dialog id="zoom-dialog">
+  <div class="dialog-body">
+    <img id="zoom-img" alt="Clue picture, enlarged">
+    <div class="dialog-actions"><button class="btn btn-ghost" type="button" data-close>Close</button></div>
+  </div>
+</dialog>
+
+<dialog id="win-dialog">
+  <div class="win-banner"></div>
+  <div class="dialog-body">
+    <h2>You found the flag!</h2>
+    <p>All three levels cracked. Show this screen to an organizer.</p>
+    <div>
+      <p class="clue-caption">Finished in</p>
+      <p class="win-time" id="win-time"></p>
+    </div>
+    <p class="fact">ECB mode leaks patterns, exactly what you just used. That's why real apps use safer modes like CBC or GCM, which make every block look different even when the input repeats.</p>
+    <div class="dialog-actions"><button class="btn btn-primary" type="button" data-close>Close</button></div>
+  </div>
+</dialog>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js"></script>
+<script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
+<script>
+"use strict";
+
+const SIZE = 480;
+const PICTURE_BYTES = SIZE * SIZE * 3;
+const MAGIC = [72, 85, 78, 84];  // "HUNT": every unlocked picture starts with these bytes
+const STORE_KEY = "aes-image-hunt-v1";
+
+const LEVELS = [
+  {
+    title: "Unlock the first picture",
+    story: "This picture was scrambled with AES, the same encryption that protects your banking app and your messages. Find the key and the picture unscrambles.",
+    concepts: ["variables", "strings", "AES keys"],
+    file: "level1.py",
+    data: "level1.bin",
+    briefing: `<p>The magic word is <code>open</code>.</p>
+               <p>But AES is picky: keys must be <strong>exactly 16 characters</strong> long.</p>
+               <p>Python trick: <code>"hi" * 3</code> gives <code>"hihihi"</code></p>`,
+    nudges: [
+      "How many letters are in <code>open</code>? How many copies of it make 16?",
+      "Put the trick to work: <code>KEY = \"open\" * 4</code>",
+    ],
+    solvedText: "The picture is your clue for Level 2. You'll find it again in the next level's sidebar.",
+    fact: "Try it: change one letter of your key and run again. The whole picture turns back into static. That's AES doing its job.",
+    template: String.raw`# Level 1: unlock the first picture
+#
+# scrambled is the locked picture as one long list of numbers (bytes).
+# With the right key, AES turns those numbers back into the originals.
+
+from Crypto.Cipher import AES
+
+KEY = "?"   # YOUR TURN: use the briefing to build the key
+
+if len(KEY) != 16:
+    raise SystemExit(f"Your key is {len(KEY)} characters long, but AES needs exactly 16.")
+
+aes = AES.new(KEY.encode(), AES.MODE_ECB)
+unscrambled = aes.decrypt(scrambled)
+
+show(unscrambled)   # draw the bytes as a picture
+`,
+  },
+  {
+    title: "Crack the vault",
+    story: "This key ends in a 3-digit PIN nobody knows. Guessing by hand would take forever, but a loop can try all 1000 PINs in a blink.",
+    concepts: ["for loops", "if", "brute force", "bytes"],
+    file: "level2.py",
+    data: "level2.bin",
+    nudges: [
+      "<code>START</code> is the text that comes before the 3 digits in your Level 1 clue.",
+      "Your check should ask: does <code>first_block</code> start with the bytes from the clue? Use <code>first_block.startswith(...)</code>",
+      "<code>first_block</code> is bytes, not text, so write <code>b\"HUNT\"</code> with a <code>b</code> in front.",
+    ],
+    solvedText: "Your loop found the PIN. This picture is your clue for the final level.",
+    fact: "A 3-digit PIN is only 1000 guesses. A real AES key has 2¹²⁸ possibilities (about 340 undecillion), so brute force only works when people choose weak keys.",
+    template: String.raw`# Level 2: crack the vault!
+#
+# The key ends in a 3-digit PIN nobody knows. A loop can try all 1000 in a blink.
+# Your clue from Level 1 tells you what the key looks like.
+
+from Crypto.Cipher import AES
+
+START = "?"   # YOUR TURN: what does every vault key start with?
+
+if len(START) + 3 != 16:
+    raise SystemExit(f"START + 3 digits must be 16 characters, but START is {len(START)} long.")
+
+for pin in range(1000):                          # pin = 0, 1, 2, ... 999
+    key = START + str(pin).zfill(3)              # zfill pads with zeros: 7 -> "007"
+    aes = AES.new(key.encode(), AES.MODE_ECB)
+    first_block = aes.decrypt(scrambled[:16])    # just the first 16 bytes, so each guess is instant
+
+    if False:  # YOUR TURN: replace False with a check on first_block. Tip: "hello".startswith("he")
+        print("Cracked it! The key is", key)
+        break
+else:
+    raise SystemExit("No PIN worked. Check START and your check, then try again.")
+
+aes = AES.new(key.encode(), AES.MODE_ECB)
+show(aes.decrypt(scrambled))
+`,
+  },
+  {
+    title: "No key? No problem.",
+    story: "Nobody knows this key. But the picture was locked with AES in ECB mode, which scrambles it in separate 16-byte chunks called blocks. Your clue from Level 2 reveals ECB's weakness.",
+    concepts: ["lists", "counting", "if / else", "ECB mode"],
+    file: "level3.py",
+    data: "level3.bin",
+    nudges: [
+      "<code>counts[block]</code> tells you how many times a block appears. \"Repeated\" means more than 1.",
+      "You need an <code>if</code> / <code>else</code> inside the loop: one branch adds <code>WHITE</code>, the other adds <code>BLACK</code>.",
+      "Replace the last line of the loop with:<br><code>if counts[block] &gt; 1:</code><br><code>&nbsp;&nbsp;&nbsp;&nbsp;result += WHITE</code><br><code>else:</code><br><code>&nbsp;&nbsp;&nbsp;&nbsp;result += BLACK</code>",
+    ],
+    template: String.raw`# Level 3: no key? No problem.
+#
+# ECB scrambles the picture in separate 16-byte blocks.
+# Your clue from Level 2 tells you its weakness. Use it to find the final flag.
+
+from collections import Counter
+
+blocks = [scrambled[i:i + 16] for i in range(0, len(scrambled), 16)]   # chop into 16-byte blocks
+counts = Counter(blocks)   # counts[block] = how many times that exact block appears
+
+WHITE = b"\xff" * 16       # 16 bytes of 255 = a white strip of pixels
+BLACK = b"\x00" * 16       # 16 bytes of 0   = a black strip of pixels
+
+result = bytearray()
+for block in blocks:
+    result += block        # YOUR TURN: add WHITE or BLACK instead, depending on counts[block]
+
+show(result)
+`,
+  },
+];
+
+// Runs a player's code with `scrambled` and `show` ready to use, and turns any
+// error into a short message plus the line number in *their* code.
+const RUNNER = String.raw`
+import traceback
+
+PICTURE_BYTES = ${PICTURE_BYTES}
+
+def run_player_code(code, data):
+    shown = {}
+
+    def show(picture):
+        picture = bytes(picture)
+        if len(picture) != PICTURE_BYTES:
+            raise ValueError(f"show() needs exactly {PICTURE_BYTES} bytes (480 x 480 pixels x 3 colours), but got {len(picture)}")
+        shown["picture"] = picture
+
+    namespace = {"__name__": "__main__", "scrambled": bytes(data.to_py()), "show": show}
+    try:
+        exec(compile(code, "<your code>", "exec"), namespace)
+    except SystemExit as stop:
+        return {"stop": str(stop)}
+    except SyntaxError as err:
+        return {"error": f"{type(err).__name__}: {err.msg}", "line": err.lineno}
+    except Exception as err:
+        frames = [f.lineno for f in traceback.extract_tb(err.__traceback__) if f.filename == "<your code>"]
+        return {"error": f"{type(err).__name__}: {err}", "line": frames[-1] if frames else None}
+    return {"picture": shown.get("picture")}
+`;
+
+const ERROR_TIPS = [
+  [/must be bytes|bytes-like/, 'first_block is bytes, so compare it with bytes: b"HUNT" instead of "HUNT".'],
+  [/^IndentationError/, "The spaces at the start of a line matter in Python. Line it up with the lines around it."],
+  [/^SyntaxError/, "Python couldn't read this line. Check for missing quotes, brackets, or a colon (:) at the end of if / for / else lines."],
+  [/^NameError/, "Python doesn't recognise that name. Check the spelling, and that text is wrapped in quotes."],
+];
+
+// ---------- saved progress ----------
+
+function freshState() {
+  return { current: 0, solved: [false, false, false], clues: [null, null, null], code: {}, nudges: {}, startedAt: null, finishedAt: null };
+}
+
+function loadState() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(STORE_KEY));
+    if (saved && Array.isArray(saved.solved)) return { ...freshState(), ...saved };
+  } catch (e) { /* storage unavailable: play without saving */ }
+  return freshState();
+}
+
+function saveState() {
+  try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch (e) { /* ignore */ }
+}
+
+let state = loadState();
+let current = isUnlocked(state.current) ? state.current : 0;
+const scrambled = [];
+let flagHash = null;
+let runPlayerCode = null;
+let errorMark = null;
+
+function isUnlocked(i) { return i === 0 || state.solved[i - 1]; }
+
+// ---------- DOM helpers ----------
+
+const $ = (id) => document.getElementById(id);
+
+function drawBytes(canvas, bytes) {
+  const image = canvas.getContext("2d").createImageData(SIZE, SIZE);
+  for (let p = 0, q = 0; p < PICTURE_BYTES; p += 3, q += 4) {
+    image.data[q] = bytes[p];
+    image.data[q + 1] = bytes[p + 1];
+    image.data[q + 2] = bytes[p + 2];
+    image.data[q + 3] = 255;
+  }
+  canvas.getContext("2d").putImageData(image, 0, 0);
+}
+
+function drawDataUrl(canvas, url) {
+  const img = new Image();
+  img.onload = () => canvas.getContext("2d").drawImage(img, 0, 0);
+  img.src = url;
+}
+
+function log(text, kind = "") {
+  const line = document.createElement("span");
+  line.className = kind;
+  line.textContent = text + "\n";
+  $("console").append(line);
+}
+
+function openDialog(dialog) {
+  if (typeof dialog.showModal === "function") dialog.showModal();
+  else dialog.setAttribute("open", "");
+}
+
+document.querySelectorAll("dialog [data-close]").forEach((btn) =>
+  btn.addEventListener("click", () => btn.closest("dialog").close()));
+
+// ---------- editor ----------
+
+const isMac = /Mac|iPhone|iPad/.test(navigator.platform);
+$("run-shortcut").textContent = isMac ? "⌘ + Enter" : "Ctrl + Enter";
+
+const editor = CodeMirror.fromTextArea($("code"), {
+  mode: "python",
+  lineNumbers: true,
+  indentUnit: 4,
+  viewportMargin: Infinity,
+  extraKeys: {
+    "Ctrl-Enter": () => run(),
+    "Cmd-Enter": () => run(),
+    Tab: (cm) => cm.replaceSelection("    "),
+  },
+});
+
+function markYourTurnLines() {
+  editor.operation(() => {
+    editor.eachLine((line) => {
+      const has = line.text.includes("YOUR TURN");
+      editor[has ? "addLineClass" : "removeLineClass"](line, "background", "cm-your-turn");
+    });
+  });
+}
+
+function clearErrorMark() {
+  if (errorMark !== null) editor.removeLineClass(errorMark, "background", "cm-error-line");
+  errorMark = null;
+}
+
+let saveTimer = null;
+editor.on("change", () => {
+  clearErrorMark();
+  markYourTurnLines();
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => { state.code[current] = editor.getValue(); saveState(); }, 400);
+});
+
+// ---------- rendering ----------
+
+function renderSteps() {
+  const steps = $("steps");
+  steps.innerHTML = "";
+  LEVELS.forEach((level, i) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "step" + (state.solved[i] ? " solved" : "");
+    btn.disabled = !isUnlocked(i);
+    if (i === current) btn.setAttribute("aria-current", "step");
+    btn.title = btn.disabled ? `Solve Level ${i} first` : level.title;
+    const icon = state.solved[i]
+      ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg>'
+      : btn.disabled
+        ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>'
+        : String(i + 1);
+    btn.innerHTML = `<span class="num">${icon}</span>Level ${i + 1}`;
+    btn.addEventListener("click", () => goTo(i));
+    steps.append(btn);
+  });
+}
+
+function renderClue() {
+  const level = LEVELS[current];
+  const clue = $("clue");
+  if (level.briefing) {
+    clue.innerHTML = `<h2>Briefing</h2>${level.briefing}`;
+    return;
+  }
+  const url = state.clues[current - 1];
+  clue.innerHTML = url
+    ? `<h2>Your clue from Level ${current}</h2>
+       <button class="clue-img" type="button" aria-label="Enlarge clue"><img src="${url}" alt="Clue picture from Level ${current}"></button>
+       <p class="clue-caption">Click to enlarge</p>`
+    : `<h2>Your clue from Level ${current}</h2><p>Re-run your Level ${current} code to see this clue again.</p>`;
+  const zoom = clue.querySelector(".clue-img");
+  if (zoom) zoom.addEventListener("click", () => { $("zoom-img").src = url; openDialog($("zoom-dialog")); });
+}
+
+function renderNudges() {
+  const level = LEVELS[current];
+  const shown = state.nudges[current] || 0;
+  $("nudge-list").innerHTML = level.nudges.slice(0, shown).map((n) => `<p class="nudge">${n}</p>`).join("");
+  $("nudge-btn").disabled = shown >= level.nudges.length;
+  $("nudge-btn").textContent = shown === 0 ? "Give me a nudge" : shown >= level.nudges.length ? "No more nudges" : "Another nudge";
+  $("nudge-count").textContent = `${shown} of ${level.nudges.length} used`;
+}
+
+function renderLevel() {
+  const level = LEVELS[current];
+  $("level-eyebrow").textContent = `Level ${current + 1} of ${LEVELS.length}`;
+  $("level-title").textContent = level.title;
+  $("level-story").textContent = level.story;
+  $("level-concepts").innerHTML = level.concepts.map((c) => `<li>${c}</li>`).join("");
+  $("file-name").textContent = level.file;
+  renderClue();
+  renderNudges();
+
+  editor.setValue(state.code[current] ?? level.template);
+  editor.clearHistory();
+  markYourTurnLines();
+  $("console").innerHTML = '<span class="muted">Change the lines marked YOUR TURN, then press Run.</span>';
+
+  if (scrambled[current]) {
+    drawBytes($("locked-canvas"), scrambled[current]);
+    $("locked-empty").hidden = true;
+  }
+  const result = $("result-canvas");
+  result.getContext("2d").clearRect(0, 0, SIZE, SIZE);
+  const solvedPicture = current < 2 ? state.clues[current] : null;
+  $("result-empty").hidden = Boolean(solvedPicture);
+  if (solvedPicture) drawDataUrl(result, solvedPicture);
+
+  $("flag-form").hidden = current !== LEVELS.length - 1;
+  $("flag-msg").textContent = "";
+  renderSteps();
+}
+
+function goTo(i) {
+  if (!isUnlocked(i)) return;
+  current = i;
+  state.current = i;
+  saveState();
+  renderLevel();
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+// ---------- running code ----------
+
+async function run() {
+  if (!runPlayerCode || !scrambled[current]) return;
+  clearErrorMark();
+  $("console").innerHTML = "";
+  $("run-btn").disabled = true;
+  $("run-label").textContent = "Running…";
+  if (!state.startedAt) { state.startedAt = Date.now(); saveState(); }
+  await new Promise((resolve) => setTimeout(resolve, 30));  // let the button repaint first
+
+  let result;
+  try {
+    const proxy = runPlayerCode(editor.getValue(), scrambled[current]);
+    result = proxy.toJs({ dict_converter: Object.fromEntries });
+    proxy.destroy();
+  } catch (e) {
+    result = { error: String(e.message || e).trim().split("\n").pop() };
+  }
+  $("run-btn").disabled = false;
+  $("run-label").textContent = "Run";
+  showResult(result);
+}
+
+function showResult(result) {
+  if (result.stop) {
+    log(result.stop, "warn");
+    return;
+  }
+  if (result.error) {
+    log((result.line ? `Line ${result.line}: ` : "") + result.error, "err");
+    const tip = ERROR_TIPS.find(([pattern]) => pattern.test(result.error));
+    if (tip) log("Tip: " + tip[1], "tip");
+    if (result.line) {
+      errorMark = result.line - 1;
+      editor.addLineClass(errorMark, "background", "cm-error-line");
+    }
+    return;
+  }
+  if (!result.picture) {
+    log("Your code ran, but never called show(...), so there's nothing to draw.", "warn");
+    return;
+  }
+
+  const picture = result.picture;
+  drawBytes($("result-canvas"), picture);
+  $("result-empty").hidden = true;
+
+  if (current === LEVELS.length - 1) {
+    log("Picture drawn. Can you read the flag?", "ok");
+    return;
+  }
+  if (MAGIC.every((byte, i) => picture[i] === byte)) {
+    log("Unlocked!", "ok");
+    solve(current);
+  } else {
+    log("Still scrambled: that's not the right key yet.", "warn");
+  }
+}
+
+function solve(i) {
+  const firstTime = !state.solved[i];
+  state.solved[i] = true;
+  state.clues[i] = $("result-canvas").toDataURL("image/png");
+  saveState();
+  renderSteps();
+  if (!firstTime) return;
+
+  $("solved-title").textContent = `Level ${i + 1} cracked!`;
+  $("solved-text").textContent = LEVELS[i].solvedText;
+  $("solved-img").src = state.clues[i];
+  $("solved-fact").textContent = LEVELS[i].fact;
+  $("solved-next").textContent = `On to Level ${i + 2} →`;
+  $("solved-next").onclick = () => { $("solved-dialog").close(); goTo(i + 1); };
+  openDialog($("solved-dialog"));
+}
+
+// ---------- the final flag ----------
+
+async function sha256(text) {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+function formatDuration(ms) {
+  const total = Math.max(0, Math.round(ms / 1000));
+  const h = Math.floor(total / 3600), m = Math.floor((total % 3600) / 60), s = total % 60;
+  const mmss = `${String(m).padStart(h ? 2 : 1, "0")}:${String(s).padStart(2, "0")}`;
+  return h ? `${h}:${mmss}` : mmss;
+}
+
+$("flag-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const guess = $("flag-input").value.trim().toLowerCase().replace(/^flag\s*:?\s*/, "");
+  const msg = $("flag-msg");
+  if (!guess) return;
+  if (flagHash && (await sha256(guess)) === flagHash) {
+    msg.className = "flag-msg";
+    msg.textContent = "";
+    if (!state.finishedAt) { state.finishedAt = Date.now(); saveState(); }
+    $("win-time").textContent = formatDuration(state.finishedAt - (state.startedAt || state.finishedAt));
+    openDialog($("win-dialog"));
+  } else {
+    msg.className = "flag-msg no";
+    msg.textContent = "Not quite. Look closely at your result picture.";
+    const form = $("flag-form");
+    form.classList.remove("shake");
+    void form.offsetWidth;
+    form.classList.add("shake");
+  }
+});
+
+// ---------- buttons ----------
+
+$("run-btn").addEventListener("click", run);
+
+$("reset-code").addEventListener("click", () => {
+  if (!confirm("Put this level's code back to how it started? Your changes will be lost.")) return;
+  delete state.code[current];
+  saveState();
+  editor.setValue(LEVELS[current].template);
+});
+
+$("nudge-btn").addEventListener("click", () => {
+  state.nudges[current] = Math.min((state.nudges[current] || 0) + 1, LEVELS[current].nudges.length);
+  saveState();
+  renderNudges();
+});
+
+$("reset-all").addEventListener("click", () => {
+  if (!confirm("Start the whole hunt again from Level 1? This clears all progress on this device.")) return;
+  state = freshState();
+  current = 0;
+  saveState();
+  renderLevel();
+});
+
+// ---------- start up ----------
+
+function setStatus(text, kind) {
+  $("py-status-text").textContent = text;
+  $("py-status").className = "py-status" + (kind ? " " + kind : "");
+}
+
+async function loadLevels() {
+  const responses = await Promise.all(LEVELS.map((level) => fetch(level.data)));
+  for (const [i, response] of responses.entries()) {
+    if (!response.ok) throw new Error(`Couldn't load ${LEVELS[i].data}`);
+    scrambled[i] = new Uint8Array(await response.arrayBuffer());
+  }
+  flagHash = (await (await fetch("puzzle.json")).json()).flag_sha256;
+  renderLevel();
+}
+
+async function startPython() {
+  setStatus("Starting Python… (about 10 seconds the first time)");
+  const pyodide = await loadPyodide();
+  await pyodide.loadPackage("pycryptodome");
+  pyodide.setStdout({ batched: (text) => log(text) });
+  pyodide.setStderr({ batched: (text) => log(text, "err") });
+  pyodide.runPython(RUNNER);
+  runPlayerCode = pyodide.globals.get("run_player_code");
+  setStatus("Python ready", "ready");
+  $("run-btn").disabled = false;
+}
+
+renderLevel();
+loadLevels().catch((e) => {
+  $("locked-empty").textContent = "Couldn't load the puzzle files. If you opened this file directly, serve the folder instead (see README).";
+  console.error(e);
+});
+startPython().catch((e) => {
+  setStatus("Couldn't start Python. Check your internet and refresh.", "failed");
+  console.error(e);
+});
+</script>
+</body>
+</html>
